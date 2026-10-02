@@ -19,10 +19,10 @@ namespace Infrastructure.Persistence.Seed
             {
                 var user = new ApplicationUser
                 {
-                    UserName = "gaberemadbader@gmail.com",
-                    PhoneNumber = "01019806684",
-                    FullName = "Gaber Emad Badr",
-                    Email = "gaberemadbader@gmail.com",
+                    UserName = "basant@gmail.com",
+                    PhoneNumber = "01010000000",
+                    FullName = "Basant Elwekel",
+                    Email = "basant@gmail.com",
                     EmailConfirmed = true,
                 };
 
