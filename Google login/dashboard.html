@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Dashboard - Zero</title>
+
+     <style>
+            body {
+                font-family: Arial, Helvetica, sans-serif;
+                background: #f5f5f5;
+                padding: 40px;
+            }
+
+            .card {
+                max-width: 900px;
+                margin: auto;
+                background: white;
+                padding: 25px;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, .1);
+            }
+
+            h1 {
+                margin-bottom: 25px;
+            }
+
+            .row {
+                margin: 15px 0;
+            }
+
+            .label {
+                font-weight: bold;
+            }
+
+            pre {
+                background: #efefef;
+                padding: 10px;
+                border-radius: 5px;
+                overflow-x: auto;
+                word-break: break-all;
+                white-space: pre-wrap;
+            }
+
+            button {
+                margin-top: 20px;
+                padding: 10px 20px;
+                cursor: pointer;
+                margin-right: 10px;
+                border: none;
+                border-radius: 5px;
+            }
+
+            #refreshTokenBtn {
+                background: #007bff;
+                color: white;
+            }
+
+            #refreshTokenBtn:hover {
+                background: #0056b3;
+            }
+
+            #refreshTokenBtn:disabled {
+                background: #999;
+                cursor: not-allowed;
+            }
+
+            #logoutBtn {
+                background: #dc3545;
+                color: white;
+            }
+
+            #logoutBtn:hover {
+                background: #b02a37;
+            }
+
+            .test-btn {
+                display: inline-block;
+                margin-top: 20px;
+                padding: 10px 20px;
+                background: #6c757d;
+                color: white;
+                text-decoration: none;
+                border-radius: 5px;
+            }
+
+            .test-btn:hover {
+                background: #545b62;
+            }
+
+            #refreshMessage {
+                margin-top: 15px;
+                font-weight: bold;
+            }
+       </style>
+
+</head>
+
+<body>
+
+<div class="card">
+
+    <h1>Dashboard</h1>
+
+
+    <!-- ========================= -->
+    <!-- User Information -->
+    <!-- ========================= -->
+
+    <div class="row">
+        <span class="label">User ID:</span>
+        <div id="userId"></div>
+    </div>
+
+
+    <div class="row">
+        <span class="label">Email:</span>
+        <div id="email"></div>
+    </div>
+
+
+    <div class="row">
+        <span class="label">Full Name:</span>
+        <div id="fullName"></div>
+    </div>
+
+
+    <div class="row">
+        <span class="label">Phone:</span>
+        <div id="phone"></div>
+    </div>
+
+
+    <hr>
+
+
+    <!-- ========================= -->
+    <!-- Token Expiration -->
+    <!-- ========================= -->
+
+    <div class="row">
+        <span class="label">Access Token Expires:</span>
+        <div id="accessExp"></div>
+    </div>
+
+
+    <div class="row">
+        <span class="label">Refresh Token Expires:</span>
+        <div id="refreshExp"></div>
+    </div>
+
+
+    <hr>
+
+
+    <!-- ========================= -->
+    <!-- Access Token -->
+    <!-- ========================= -->
+
+    <div class="row">
+
+        <span class="label">
+            Access Token
+        </span>
+
+        <pre id="accessToken"></pre>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- Refresh Token -->
+    <!-- ========================= -->
+
+    <div class="row">
+
+        <span class="label">
+            Refresh Token
+        </span>
+
+        <pre id="refreshToken"></pre>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- Buttons -->
+    <!-- ========================= -->
+
+    <button id="refreshTokenBtn">
+        Refresh Token
+    </button>
+
+
+    <button id="logoutBtn">
+        Logout
+    </button>
+
+
+    <a
+        href="test.html"
+        target="_blank"
+        class="test-btn">
+        Test
+    </a>
+
+
+    <!-- ========================= -->
+    <!-- Refresh Message -->
+    <!-- ========================= -->
+
+    <div id="refreshMessage"></div>
+
+</div>
+
+
+<script>
+
+
+    // ==========================================
+    // Parse JWT
+    // ==========================================
+
+    function parseJwt(token) {
+
+        if (!token) {
+            return null;
+        }
+
+        try {
+
+            const base64Url = token.split('.')[1];
+
+            if (!base64Url) {
+                return null;
+            }
+
+            const base64 = base64Url
+                .replace(/-/g, '+')
+                .replace(/_/g, '/');
+
+            return JSON.parse(
+                decodeURIComponent(
+                    atob(base64)
+                        .split('')
+                        .map(c =>
+                            '%' +
+                            ('00' +
+                                c.charCodeAt(0).toString(16)
+                            ).slice(-2)
+                        )
+                        .join('')
+                )
+            );
+
+        }
+        catch (error) {
+
+            console.error(
+                "Failed to parse JWT:",
+                error
+            );
+
+            return null;
+        }
+    }
+
+
+    // ==========================================
+    // Load Data From LocalStorage
+    // ==========================================
+
+    function loadTokens() {
+
+        const accessToken =
+            localStorage.getItem("accessToken");
+
+        const refreshToken =
+            localStorage.getItem("refreshToken");
+
+        const accessExp =
+            localStorage.getItem(
+                "accessTokenExpiresAt"
+            );
+
+        const refreshExp =
+            localStorage.getItem(
+                "refreshTokenExpiresAt"
+            );
+
+
+        // ------------------------------------------
+        // Check Access Token
+        // ------------------------------------------
+
+        if (!accessToken) {
+
+            window.location.href =
+                "signin.html";
+
+            return;
+        }
+
+
+        // ------------------------------------------
+        // Parse Access Token
+        // ------------------------------------------
+
+        const claims =
+            parseJwt(accessToken);
+
+
+        if (!claims) {
+
+            console.error(
+                "Invalid access token."
+            );
+
+            localStorage.clear();
+
+            window.location.href =
+                "signin.html";
+
+            return;
+        }
+
+
+        // ------------------------------------------
+        // User ID
+        // ------------------------------------------
+
+        document.getElementById("userId")
+            .textContent =
+            claims.uid ?? "N/A";
+
+
+        // ------------------------------------------
+        // Email
+        // ------------------------------------------
+
+        document.getElementById("email")
+            .textContent =
+            claims[
+                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
+            ] ?? "N/A";
+
+
+        // ------------------------------------------
+        // Full Name
+        // ------------------------------------------
+
+        document.getElementById("fullName")
+            .textContent =
+            claims.fullname ||
+            "Not Provided";
+
+
+        // ------------------------------------------
+        // Phone
+        // ------------------------------------------
+
+        document.getElementById("phone")
+            .textContent =
+            claims.phone ||
+            "Not Provided";
+
+
+        // ------------------------------------------
+        // Access Token Expiration
+        // ------------------------------------------
+
+        document.getElementById("accessExp")
+            .textContent =
+            accessExp ||
+            "N/A";
+
+
+        // ------------------------------------------
+        // Refresh Token Expiration
+        // ------------------------------------------
+
+        document.getElementById("refreshExp")
+            .textContent =
+            refreshExp ||
+            "N/A";
+
+
+        // ------------------------------------------
+        // Access Token
+        // ------------------------------------------
+
+        document.getElementById("accessToken")
+            .textContent =
+            accessToken;
+
+
+        // ------------------------------------------
+        // Refresh Token
+        // ------------------------------------------
+
+        document.getElementById("refreshToken")
+            .textContent =
+            refreshToken ||
+            "N/A";
+    }
+
+
+    // ==========================================
+    // Initial Page Load
+    // ==========================================
+
+    loadTokens();
+
+
+    // ==========================================
+    // Refresh Token
+    // ==========================================
+
+    document
+        .getElementById("refreshTokenBtn")
+        .addEventListener(
+            "click",
+            async () => {
+
+                const refreshToken =
+                    localStorage.getItem(
+                        "refreshToken"
+                    );
+
+
+                // ----------------------------------
+                // Check Refresh Token
+                // ----------------------------------
+
+                if (!refreshToken) {
+
+                    alert(
+                        "No refresh token found."
+                    );
+
+                    return;
+                }
+
+
+                const button =
+                    document.getElementById(
+                        "refreshTokenBtn"
+                    );
+
+
+                const message =
+                    document.getElementById(
+                        "refreshMessage"
+                    );
+
+
+                // ----------------------------------
+                // Disable Button
+                // ----------------------------------
+
+                button.disabled = true;
+
+                message.textContent =
+                    "Refreshing token...";
+
+
+                try {
+
+
+                    // ==================================
+                    // Call Refresh Endpoint
+                    // ==================================
+
+                    const response =
+                        await fetch(
+                            "https://localhost:7237/api/Auth/refresh-token",
+                            {
+                                method: "POST",
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+
+                                body: JSON.stringify({
+                                    refreshToken:
+                                        refreshToken
+                                })
+                            }
+                        );
+
+
+                    // ==================================
+                    // Read Response
+                    // ==================================
+
+                    const result =
+                        await response.json();
+
+
+                    console.log(
+                        "Refresh Token Response:",
+                        result
+                    );
+
+
+                    // ==================================
+                    // Check API Response
+                    // ==================================
+
+                        if (!response.ok || !result.accessToken) {
+
+                        throw new Error(
+                            `Refresh failed (${response.status}): ${
+                                result.message ||
+                                "Unknown error"
+                            }`
+                        );
+                    }
+
+
+                    // ==================================
+                    // Get Token Data
+                    // ==================================
+
+                    const tokenData = result;
+
+
+                    if (!tokenData ||!tokenData.accessToken ||!tokenData.refreshToken) {
+
+                        throw new Error(
+                            "Refresh endpoint returned invalid token data."
+                        );
+                    }
+
+
+                    // ==================================
+                    // Save NEW Access Token
+                    // ==================================
+
+                    localStorage.setItem(
+                        "accessToken",
+                        tokenData.accessToken
+                    );
+
+
+                    // ==================================
+                    // Save NEW Refresh Token
+                    // ==================================
+
+                    localStorage.setItem(
+                        "refreshToken",
+                        tokenData.refreshToken
+                    );
+
+
+                    // ==================================
+                    // Save Access Token Expiration
+                    // ==================================
+
+                    if (
+                        tokenData.accessTokenExpiresAt
+                    ) {
+
+                        localStorage.setItem(
+                            "accessTokenExpiresAt",
+                            tokenData.accessTokenExpiresAt
+                        );
+
+                    }
+
+
+                    // ==================================
+                    // Save Refresh Token Expiration
+                    // ==================================
+
+                    if (
+                        tokenData.refreshTokenExpiresAt
+                    ) {
+
+                        localStorage.setItem(
+                            "refreshTokenExpiresAt",
+                            tokenData.refreshTokenExpiresAt
+                        );
+
+                    }
+
+
+                    // ==================================
+                    // Reload Dashboard Data
+                    // ==================================
+
+                    loadTokens();
+
+
+                    // ==================================
+                    // Success Message
+                    // ==================================
+
+                    message.textContent =
+                        "Token refreshed successfully.";
+
+
+                    console.log(
+                        "New access token:",
+                        tokenData.accessToken
+                    );
+
+                    console.log(
+                        "New refresh token:",
+                        tokenData.refreshToken
+                    );
+
+
+                }
+                catch (error) {
+
+                    console.error(
+                        "Refresh token error:",
+                        error
+                    );
+
+
+                    message.textContent =
+                        "Failed to refresh token: " +
+                        error.message;
+
+                }
+                finally {
+
+                    // ----------------------------------
+                    // Enable Button Again
+                    // ----------------------------------
+
+                    button.disabled = false;
+
+                }
+
+            }
+        );
+
+
+    // ==========================================
+    // Logout
+    // ==========================================
+
+    document
+        .getElementById("logoutBtn")
+        .addEventListener(
+            "click",
+            () => {
+
+                localStorage.clear();
+
+                window.location.href =
+                    "signin.html";
+
+            }
+        );
+
+</script>
+
+</body>
+
+</html>
